@@ -1,0 +1,277 @@
+\documentclass{article}\usepackage{graphicx, color}
+%% maxwidth is the original width if it is less than linewidth
+%% otherwise use linewidth (to make sure the graphics do not exceed the margin)
+\makeatletter
+\def\maxwidth{ %
+  \ifdim\Gin@nat@width>\linewidth
+    \linewidth
+  \else
+    \Gin@nat@width
+  \fi
+}
+\makeatother
+
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\definecolor{fgcolor}{rgb}{0.2, 0.2, 0.2}
+\newcommand{\hlnumber}[1]{\textcolor[rgb]{0,0,0}{#1}}%
+\newcommand{\hlfunctioncall}[1]{\textcolor[rgb]{0.501960784313725,0,0.329411764705882}{\textbf{#1}}}%
+\newcommand{\hlstring}[1]{\textcolor[rgb]{0.6,0.6,1}{#1}}%
+\newcommand{\hlkeyword}[1]{\textcolor[rgb]{0,0,0}{\textbf{#1}}}%
+\newcommand{\hlargument}[1]{\textcolor[rgb]{0.690196078431373,0.250980392156863,0.0196078431372549}{#1}}%
+\newcommand{\hlcomment}[1]{\textcolor[rgb]{0.180392156862745,0.6,0.341176470588235}{#1}}%
+\newcommand{\hlroxygencomment}[1]{\textcolor[rgb]{0.43921568627451,0.47843137254902,0.701960784313725}{#1}}%
+\newcommand{\hlformalargs}[1]{\textcolor[rgb]{0.690196078431373,0.250980392156863,0.0196078431372549}{#1}}%
+\newcommand{\hleqformalargs}[1]{\textcolor[rgb]{0.690196078431373,0.250980392156863,0.0196078431372549}{#1}}%
+\newcommand{\hlassignement}[1]{\textcolor[rgb]{0,0,0}{\textbf{#1}}}%
+\newcommand{\hlpackage}[1]{\textcolor[rgb]{0.588235294117647,0.709803921568627,0.145098039215686}{#1}}%
+\newcommand{\hlslot}[1]{\textit{#1}}%
+\newcommand{\hlsymbol}[1]{\textcolor[rgb]{0,0,0}{#1}}%
+\newcommand{\hlprompt}[1]{\textcolor[rgb]{0.2,0.2,0.2}{#1}}%
+
+\usepackage{framed}
+\makeatletter
+\newenvironment{kframe}{%
+ \def\at@end@of@kframe{}%
+ \ifinner\ifhmode%
+  \def\at@end@of@kframe{\end{minipage}}%
+  \begin{minipage}{\columnwidth}%
+ \fi\fi%
+ \def\FrameCommand##1{\hskip\@totalleftmargin \hskip-\fboxsep
+ \colorbox{shadecolor}{##1}\hskip-\fboxsep
+     % There is no \\@totalrightmargin, so:
+     \hskip-\linewidth \hskip-\@totalleftmargin \hskip\columnwidth}%
+ \MakeFramed {\advance\hsize-\width
+   \@totalleftmargin\z@ \linewidth\hsize
+   \@setminipage}}%
+ {\par\unskip\endMakeFramed%
+ \at@end@of@kframe}
+\makeatother
+
+\definecolor{shadecolor}{rgb}{.97, .97, .97}
+\definecolor{messagecolor}{rgb}{0, 0, 0}
+\definecolor{warningcolor}{rgb}{1, 0, 1}
+\definecolor{errorcolor}{rgb}{1, 0, 0}
+\newenvironment{knitrout}{}{} % an empty environment to be redefined in TeX
+
+\usepackage{alltt}
+\usepackage[hidelinks]{hyperref}
+\begin{document}
+This will be a momentum strategy.  Much of this will come from \href{http://rbresearch.wordpress.com/2012/08/23/momentum-with-r-part-1/}{Ross Bennett's blog}.  
+\section{Preparation}
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlfunctioncall{require}(quantstrat)
+\hlfunctioncall{currency}(\hlstring{"USD"})
+\end{alltt}
+\begin{verbatim}
+## [1] "USD"
+\end{verbatim}
+\begin{alltt}
+symbols = \hlfunctioncall{c}(\hlstring{"XLY"}, \hlstring{"XLP"}, \hlstring{"XLE"}, \hlstring{"XLF"})
+\hlfunctioncall{stock}(symbols, currency = \hlstring{"USD"}, multiplier = 1)
+\end{alltt}
+\begin{verbatim}
+## [1] "XLY" "XLP" "XLE" "XLF"
+\end{verbatim}
+\begin{alltt}
+\hlfunctioncall{getSymbols}(symbols, src = \hlstring{"yahoo"}, index.class = \hlfunctioncall{c}(\hlstring{"POSIXt"}, \hlstring{"POSIXct"}), from = \hlstring{"2000-01-01"})
+\end{alltt}
+\begin{verbatim}
+## [1] "XLY" "XLP" "XLE" "XLF"
+\end{verbatim}
+\end{kframe}
+\end{knitrout}
+
+Convert to monthly and drop all columns except Adjusted Close
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlfunctioncall{for} (symbol in symbols) \{
+    x <- \hlfunctioncall{get}(symbol)
+    x <- \hlfunctioncall{to.monthly}(x, indexAt = \hlstring{"lastof"}, drop.time = TRUE)
+    \hlfunctioncall{indexFormat}(x) <- \hlstring{"%Y-%m-%d"}
+    \hlfunctioncall{colnames}(x) <- \hlfunctioncall{gsub}(\hlstring{"x"}, symbol, \hlfunctioncall{colnames}(x))
+    x <- x[, 6]  \hlcomment{#drops all columns except Adjusted Close which is 6th column}
+    \hlfunctioncall{assign}(symbol, x)
+\}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+There are now four objects that have an adjusted close.Merge the symbols into a single object with just the close prices
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+symbols_close <- \hlfunctioncall{do.call}(merge, \hlfunctioncall{lapply}(symbols, get))
+\hlfunctioncall{head}(symbols_close)
+\end{alltt}
+\begin{verbatim}
+##            XLY.Adjusted XLP.Adjusted XLE.Adjusted XLF.Adjusted
+## 2000-01-31        23.75        17.94        22.57        17.84
+## 2000-02-29        22.43        15.84        21.62        15.93
+## 2000-03-29        25.56        16.39        24.22        18.78
+## 2000-04-28        25.03        17.25        23.86        18.96
+## 2000-05-29        23.67        18.49        26.67        19.38
+## 2000-06-28        22.39        19.53        25.19        18.44
+\end{verbatim}
+\end{kframe}
+\end{knitrout}
+
+Now calculate the three period rate of change so that the returns can be ranked to see where the momentum lies. 
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+roc <- \hlfunctioncall{ROC}(symbols_close, n = 3, type = \hlstring{"discrete"})
+\hlfunctioncall{head}(roc)
+\end{alltt}
+\begin{verbatim}
+##            XLY.Adjusted XLP.Adjusted XLE.Adjusted XLF.Adjusted
+## 2000-01-31           NA           NA           NA           NA
+## 2000-02-29           NA           NA           NA           NA
+## 2000-03-29           NA           NA           NA           NA
+## 2000-04-28      0.05389     -0.03846      0.05716      0.06278
+## 2000-05-29      0.05528      0.16730      0.23358      0.21657
+## 2000-06-28     -0.12402      0.19158      0.04005     -0.01810
+\end{verbatim}
+\end{kframe}
+\end{knitrout}
+
+Now apply the rank function across each column. The symbol with the highest return has the rank one for each month. This will be an xts object with ranks. 
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+r <- \hlfunctioncall{as.xts}(\hlfunctioncall{t}(\hlfunctioncall{apply}(-roc, 1, rank)))
+\hlfunctioncall{head}(r)
+\end{alltt}
+\begin{verbatim}
+##            XLY.Adjusted XLP.Adjusted XLE.Adjusted XLF.Adjusted
+## 2000-01-31            1            2            3            4
+## 2000-02-29            1            2            3            4
+## 2000-03-29            1            2            3            4
+## 2000-04-28            3            4            2            1
+## 2000-05-29            4            3            1            2
+## 2000-06-28            4            1            2            3
+\end{verbatim}
+\end{kframe}
+\end{knitrout}
+
+\section{Functions}
+\subsection{RankingRB}
+Computes the rank of an xts object of ranking factors.  Ranking factors are the factors that are ranked (i.e. asset returns)
+\begin{itemize}
+\item{args}
+  x = xts object of ranking factors
+  
+\item{Returns}
+  Returns an xts object with ranks
+  (e.g. for ranking asset returns, the asset with the greatest return
+  receives a  rank of 1)
+\end{itemize}
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+RankRB <- \hlfunctioncall{function}(x) \{
+    r <- \hlfunctioncall{as.xts}(\hlfunctioncall{t}(\hlfunctioncall{apply}(-x, 1, rank, na.last = \hlstring{"keep"})))
+    \hlfunctioncall{return}(r)
+\}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+\subsection{MontlyAd}
+   Converts daily data to monthly and returns only the monthly close. 
+\begin{itemize}
+\item Args:
+  x = daily price data from Yahoo Finance
+  
+\item{Returns}
+  xts object with the monthly adjusted close prices
+\end{itemize}
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+MonthlyAd <- \hlfunctioncall{function}(x) \{
+    sym <- \hlfunctioncall{sub}(\hlstring{"\textbackslash{}\textbackslash{}..*$"}, \hlstring{""}, \hlfunctioncall{names}(x)[1])
+    \hlfunctioncall{Ad}(\hlfunctioncall{to.monthly}(x, indexAt = \hlstring{"lastof"}, drop.time = TRUE, name = sym))
+\}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+\subsection{CAGR}
+Function to compute the CAGR given simple returns
+\begin{itemize}
+\item Args:
+  x = xts of simple returns
+  m = periods per year (i.e. monthly = 12, daily = 252)
+\item Returns the Compound Annual Growth Rate
+\end{itemize}  
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+CAGR <- \hlfunctioncall{function}(x, m) \{
+    x <- \hlfunctioncall{na.omit}(x)
+    cagr <- \hlfunctioncall{apply}(x, 2, \hlfunctioncall{function}(x, m) \hlfunctioncall{prod}(1 + x)^(1/(\hlfunctioncall{length}(x)/m)) - 1, m = m)
+    \hlfunctioncall{return}(cagr)
+\}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+\subsection{SimpleMomentumTest}
+Returns a list containing a matrix of individual asset returns and the comnbined returns. Trade the top n asset(s) if the rank of last period is less than or equal to n,then I would experience the return for this month.
+\begin{itemize}
+\item args:
+  xts.ret = xts of one period returns
+  xts.rank = xts of ranks
+  n = number of top ranked assets to trade
+  ret.fill.na = number of return periods to fill with NA
+\item Returns:
+  An xts object of simple returns
+\end{itemize}
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+SimpleMomentumTest <- \hlfunctioncall{function}(xts.ret, xts.rank, n = 1, ret.fill.na = 3) \{
+\hlcomment{    # returns a list containing a matrix of individual asset returns and the}
+\hlcomment{    # comnbined returns args: xts.ret = xts of one period returns xts.rank =}
+\hlcomment{    # xts of ranks n = number of top ranked assets to trade ret.fill.na =}
+\hlcomment{    # number of return periods to fill with NA}
+\hlcomment{    # }
+\hlcomment{    # Returns: returns an xts object of simple returns}
+    
+\hlcomment{    # trade the top n asset(s) if the rank of last period is less than or}
+\hlcomment{    # equal to n, then I would experience the return for this month.}
+    
+\hlcomment{    # lag the rank object by one period to avoid look ahead bias}
+    lag.rank <- \hlfunctioncall{lag}(xts.rank, k = 1, na.pad = TRUE)
+    n2 <- \hlfunctioncall{nrow}(lag.rank[\hlfunctioncall{is.na}(lag.rank[, 1]) == TRUE])
+    z <- \hlfunctioncall{max}(n2, ret.fill.na)
+    
+\hlcomment{    # for trading the top ranked asset, replace all ranks above n with NA to}
+\hlcomment{    # set up for element wise multiplication to get the realized returns}
+    lag.rank <- \hlfunctioncall{as.matrix}(lag.rank)
+    lag.rank[lag.rank > n] <- NA
+\hlcomment{    # set the element to 1 for assets ranked <= to rank}
+    lag.rank[lag.rank <= n] <- 1
+    
+\hlcomment{    # element wise multiplication of the 1 period return matrix and lagged}
+\hlcomment{    # rank matrix}
+    mat.ret <- \hlfunctioncall{as.matrix}(xts.ret) * lag.rank
+    
+\hlcomment{    # average the rows of the mat.ret to get the return for that period}
+    vec.ret <- \hlfunctioncall{rowMeans}(mat.ret, na.rm = TRUE)
+    vec.ret[1:z] <- NA
+    
+\hlcomment{    # convert to an xts object}
+    vec.ret <- \hlfunctioncall{xts}(x = vec.ret, order.by = \hlfunctioncall{index}(xts.ret))
+    f <- \hlfunctioncall{list}(mat = mat.ret, ret = vec.ret, rank = lag.rank)
+    \hlfunctioncall{return}(f)
+\}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+
+\end{document}
