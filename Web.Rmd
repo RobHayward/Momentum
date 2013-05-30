@@ -1,0 +1,41 @@
+Momentum Strategy
+========================================================
+
+This about momentum strategy.  It is taken from [Ross Bennett's blog](http://rbresearch.wordpress.com/2012/08/23/momentum-with-r-part-1/)  
+
+```{r, prepare, warning=FALSE, error = FALSE, message = FALSE}
+require(quantstrat)
+
+#Load ETFs from yahoo
+currency("USD")
+symbols = c("XLY", "XLP", "XLE", "XLF")
+stock(symbols, currency="USD",multiplier=1)
+getSymbols(symbols, src='yahoo', index.class=c("POSIXt","POSIXct"), 
+           from='2000-01-01')
+#Convert to monthly and drop all columns except Adjusted Close
+for(symbol in symbols) {
+  x <- get(symbol)
+  x <- to.monthly(x,indexAt='lastof',drop.time=TRUE)
+  indexFormat(x) <- '%Y-%m-%d'
+  colnames(x) <- gsub("x",symbol,colnames(x))
+  x <- x[,6] #drops all columns except Adjusted Close which is 6th column
+  assign(symbol,x)
+}
+```
+There are now four objects that have an adjusted close.Merge the symbols into a single object with just the close prices
+```{r, merge}
+symbols_close <- do.call(merge, lapply(symbols, get))
+head(symbols_close)                   
+```
+Now calculate the three period rate of change so that the returns can be ranked ot see where the momentum lies. 
+```{r, roc}
+roc <- ROC(symbols_close, n = 3, type = 'discrete')
+head(roc)
+```
+Now apply the rank function across each column. The symbol with the highest return has the rank one for each month. This will be an xts object with ranks. 
+```{r, rank}
+r <- as.xts(t(apply(-roc, 1, rank)))
+head(r)
+```
+
+
